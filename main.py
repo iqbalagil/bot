@@ -11,7 +11,6 @@ import certifi
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_API_TOKEN')
-print(TOKEN)
 
 intents: Intents = Intents.default()
 
@@ -35,29 +34,30 @@ config = load_config()
 class BotClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tree = app_commands.CommandTree(self)
+        # self.tree = app_commands.CommandTree(self)
 
     async def on_ready(self):
-        await self.tree.sync()
+        await tree.sync(guild= discord.Object(id=1011572535235711007))
         print(f'{self.user} is now running')
 
 client = BotClient(intents=intents)
+tree = app_commands.CommandTree(client)
 
-@client.tree.command(name='setchannel', description='Set the channel ID')
+@tree.command(name='setchannel', description='Set the channel ID')
 async def set_channel(interaction: Interaction, channel_id: int):
     config['channel_id'] = channel_id
     save_config(config)
     await interaction.response.send_message(f'Channel set to {channel_id}')
 
-@client.tree.command(name='hello', description='Greet the bot')
+@tree.command(name='hello', description='Greet the bot')
 async def hello(interaction: Interaction):
     await interaction.response.send_message('Hello there!')
 
-@client.tree.command(name='config', description='Show current configuration')
+@tree.command(name='config', description='Show current configuration')
 async def config_command(interaction: Interaction):
     await interaction.response.send_message(f'Current Configuration: {json.dumps(config, indent=2)}')
 
-@client.tree.command(name='message', description='Set message configuration')
+@tree.command(name='message', description='Set message configuration')
 async def message_command(interaction: Interaction, message: str, image_url: str, created_by: str, date_time: str):
     config['message'] = {
         'image_url': image_url,
@@ -68,7 +68,7 @@ async def message_command(interaction: Interaction, message: str, image_url: str
     save_config(config)
     await interaction.response.send_message(f'Message configuration set: {json.dumps(config["message"], indent=2)}')
 
-@client.tree.command(name='help', description='List available commands')
+@tree.command(name='help', description='List available commands')
 async def help_command(interaction: Interaction):
     help_text = (
         "/setchannel <channel_id> - Set the channel ID\n"
