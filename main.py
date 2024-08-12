@@ -2,10 +2,10 @@ import json
 import ssl
 from typing import Final
 import os
+
+import discord
 from dotenv import load_dotenv
-from discord.ext import commands
-from discord import Intents, Message
-from discord import app_commands
+from discord import app_commands, Interaction, Intents, Message
 from settings import get_response
 import certifi
 
@@ -14,9 +14,6 @@ TOKEN: Final[str] = os.getenv('DISCORD_API_TOKEN')
 print(TOKEN)
 
 intents: Intents = Intents.default()
-intents.message_content = True # NOQA
-
-bot = commands.Bot(command_prefix='/',intents=intents, ssl=ssl.create_default_context(cafile=certifi.where()))
 
 CONFIG_FILE = 'config.json'
 
@@ -25,7 +22,7 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
-    return{}
+    return {}
 
 
 def save_config(config):
@@ -35,26 +32,33 @@ def save_config(config):
 
 config = load_config()
 
+class BotClient(discord.Client):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tree = app_commands.CommandTree(self)
 
-@bot.command(name='setchannel')
-async def set_channel(ctx, channel_id: int):
+    async def on_ready(self):
+        await self.tree.sync()
+        print(f'{self.user} is now running')
+
+client = BotClient(intents=intents)
+
+@client.tree.command(name='setchannel', description='Set the channel ID')
+async def set_channel(interaction: Interaction, channel_id: int):
     config['channel_id'] = channel_id
     save_config(config)
-    await ctx.send(f'Channel set to {channel_id}')
+    await interaction.response.send_message(f'Channel set to {channel_id}')
 
+@client.tree.command(name='hello', description='Greet the bot')
+async def hello(interaction: Interaction):
+    await interaction.response.send_message('Hello there!')
 
-@bot.command(name='hello')
-async def hello(ctx):
-    await ctx.send('Hello there!')
+@client.tree.command(name='config', description='Show current configuration')
+async def config_command(interaction: Interaction):
+    await interaction.response.send_message(f'Current Configuration: {json.dumps(config, indent=2)}')
 
-
-@bot.command(name='config')
-async def config_command(ctx):
-    await ctx.send(f'Current configuration: {json.dumps(config,indent=2)}')
-
-
-@bot.command(name='message')
-async def message_command(ctx, message: str, image_url: str, created_by: str, date_time: str):
+@client.tree.command(name='message', description='Set message configuration')
+async def message_command(interaction: Interaction, message: str, image_url: str, created_by: str, date_time: str):
     config['message'] = {
         'image_url': image_url,
         'text': message,
@@ -62,7 +66,18 @@ async def message_command(ctx, message: str, image_url: str, created_by: str, da
         'date_time': date_time
     }
     save_config(config)
-    await ctx.send(f'Message configuration setL {json.dumps(config["message"], indent=2)}')
+    await interaction.response.send_message(f'Message configuration set: {json.dumps(config["message"], indent=2)}')
+
+@client.tree.command(name='help', description='List available commands')
+async def help_command(interaction: Interaction):
+    help_text = (
+        "/setchannel <channel_id> - Set the channel ID\n"
+        "/hello - Greet the bot\n"
+        "/config - Show current configuration\n"
+        "/message <message> <image_url> <created_by> <date_time> - Set message configuration\n"
+    )
+    await interaction.response.send_message(help_text)
+
 
 async def send_message(message: Message, user_message: str) -> None:
     if not user_message:
@@ -79,27 +94,8 @@ async def send_message(message: Message, user_message: str) -> None:
         print(e)
 
 
-@bot.event
-async def on_ready() -> None:
-        print(f'{bot.user} is now running')
-
-
-# @bot.event
-# async def on_message(message: Message) -> None:
-#     if message.author == bot.user:
-#         return
-# 
-#     username: str = str(message.author)
-#     user_message: str = message.content
-#     channel: str = str(message.channel)
-# 
-#     print(f'[{channel}] {username}: "{user_message}"')
-#     await send_message(message, user_message)
-#     await bot.process_commands(message)
-
-
 def main() -> None:
-    bot.run(TOKEN)
+    client.run(TOKEN)
 
 
 if __name__ == '__main__':
