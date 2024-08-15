@@ -1,5 +1,4 @@
 import json
-import ssl
 from typing import Final
 import os
 
@@ -7,7 +6,6 @@ import discord
 from dotenv import load_dotenv
 from discord import app_commands, Interaction, Intents, Message
 from settings import get_response
-import certifi
 
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_API_TOKEN')
@@ -31,17 +29,21 @@ def save_config(config):
 
 config = load_config()
 
+
 class BotClient(discord.Client):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # self.tree = app_commands.CommandTree(self)
 
     async def on_ready(self):
-        await tree.sync(guild= discord.Object(id=1011572535235711007))
+        await tree.sync(guild=discord.Object(id=1011572535235711007))
         print(f'{self.user} is now running')
+
 
 client = BotClient(intents=intents)
 tree = app_commands.CommandTree(client)
+
 
 @tree.command(name='setchannel', description='Set the channel ID')
 async def set_channel(interaction: Interaction, channel_id: int):
@@ -49,32 +51,54 @@ async def set_channel(interaction: Interaction, channel_id: int):
     save_config(config)
     await interaction.response.send_message(f'Channel set to {channel_id}')
 
+
 @tree.command(name='hello', description='Greet the bot')
 async def hello(interaction: Interaction):
     await interaction.response.send_message('Hello there!')
+
 
 @tree.command(name='config', description='Show current configuration')
 async def config_command(interaction: Interaction):
     await interaction.response.send_message(f'Current Configuration: {json.dumps(config, indent=2)}')
 
+
 @tree.command(name='message', description='Set message configuration')
 async def message_command(interaction: Interaction, message: str, image_url: str, created_by: str, date_time: str):
-    config['message'] = {
-        'image_url': image_url,
-        'text': message,
-        'created_by': created_by,
-        'date_time': date_time
+    config = {
+        "image_url": image_url,
+        "text": message,
+        "created_by": created_by,
+        "date_time": date_time
     }
     save_config(config)
-    await interaction.response.send_message(f'Message configuration set: {json.dumps(config["message"], indent=2)}')
+    await interaction.response.send_message(f'{json.dumps(config["image_url","text","created_by","date_time"], indent=2)}')
+
+
+@tree.command(name='highlight', description='Send a highlighted message with changing color')
+async def highlight(interaction: Interaction, message: str, color: str):
+    color_dict = {
+        'red': discord.Color.red(),
+        'green': discord.Color.green(),
+        'blue': discord.Color.blue(),
+        'yellow': discord.Color.yellow()
+    }
+    embed_color = color_dict.get(color.lower(), discord.Color.default())
+    embed = discord.Embed(description=f'```{message}```', color=embed_color)
+    await interaction.response.send_message(embed=embed)
+
 
 @tree.command(name='help', description='List available commands')
 async def help_command(interaction: Interaction):
     help_text = (
-        "/setchannel <channel_id> - Set the channel ID\n"
-        "/hello - Greet the bot\n"
-        "/config - Show current configuration\n"
-        "/message <message> <image_url> <created_by> <date_time> - Set message configuration\n"
+        "# ⚙️ Help Center\n"
+        "> \n"
+        "> `/setchannel <channel_id> - Set the channel ID`\n"
+        "> \n"
+        "> `/hello - Greet the bot`\n"
+        "> \n"
+        "> `/config - Show current configuration`\n"
+        "> \n"
+        "> `/message <message> <image_url> <created_by> <date_time> - Set message configuration` \n"
     )
     await interaction.response.send_message(help_text)
 
